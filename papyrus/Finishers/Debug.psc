@@ -30,13 +30,32 @@ Function SpawnFight() Global
 		Debug.Notification("Finishers: could not place the raiders here.")
 		Return
 	EndIf
-	a.RemoveFromAllFactions()
-	b.RemoveFromAllFactions()
-	a.AddToFaction(sideA)
-	b.AddToFaction(sideB)
+	; A leveled raider takes its template's factions when it is set up, after it is placed: removed at once, they came
+	; back, and the raiders went for the player and the companions (owner 10-08). So: wait until both are loaded (the
+	; MCM menu holds this until it is closed), then take every faction away, twice over a moment.
+	Int tries = 0
+	While (!a.Is3DLoaded() || !b.Is3DLoaded()) && tries < 50
+		Utility.Wait(0.1)
+		tries += 1
+	EndWhile
+	Utility.Wait(0.5)
+	Isolate(a, sideA)
+	Isolate(b, sideB)
+	Utility.Wait(1.0)
+	Isolate(a, sideA)
+	Isolate(b, sideB)
 	a.StartCombat(b, False)
 	b.StartCombat(a, False)
 	Debug.Notification("Finishers: two raiders fight in front of you.")
+EndFunction
+
+; Only the other raider is an enemy: no faction but its own side, no fight with anyone else, and a stray hit from a
+; bystander does not turn it on them (so nobody has a reason to turn on it either).
+Function Isolate(Actor akWho, Faction akSide) Global
+	akWho.StopCombat()
+	akWho.RemoveFromAllFactions()
+	akWho.AddToFaction(akSide)
+	akWho.IgnoreFriendlyHits(True)
 EndFunction
 
 Actor Function Spawn(Actor akPlayer, ActorBase akBase, Form akMarker, Float afX, Float afY, Float afZ) Global
