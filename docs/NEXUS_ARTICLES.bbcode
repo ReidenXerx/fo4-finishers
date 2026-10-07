@@ -1,0 +1,23 @@
+=== ARTICLE: Finishers - how it works ===
+[size=5][b]How Finishers works[/b][/size]
+Measured on the Anniversary Edition (1.11.240), October 2026. The same DLL runs on 1.10.163 and next-gen through [url=https://www.nexusmods.com/fallout4/mods/108394]Runtime Database[/url].
+
+[size=4][b]Why kill moves are rare[/b][/size]
+[list]
+[*][b]The game only finishes a fatal swing.[/b] Every kill move is gated by the condition ShouldAttackKill (script function 678). It predicts the hit (HitData kPredictDamage) and answers "fatal" only when that exact swing would kill.[/*]
+[*][b]Fighters rarely try at all.[/b] The try rate is lerp(fCombatSpecialAttackChanceMin 0, fCombatSpecialAttackChanceMax 1, the combat style's Special Attack Mult), checked once per fCombatSpecialAttackDelayTime, 5 seconds. A raider's combat style sets the mult to 0.1: one try in ten, every five seconds.[/*]
+[/list]
+[size=4][b]What Finishers changes[/b][/size]
+[list]
+[*][b]The try.[/b] Fighters try a grab or kill move at least half the time, every 3 seconds.[/*]
+[*][b]The kill check.[/b] Finishers wraps ShouldAttackKill through the script function table. A target at 30% health or less answers "fatal" on half the swings, so it can be finished early; the victim dies in the animation. When the target is the player, the game's own answer stands.[/*]
+[*]All of these are MCM sliders.[/*]
+[/list]
+[size=4][b]Why the same kill move keeps playing[/b][/size]
+Kill moves are idle trees under ActionRightSyncAttack. The game walks a weapon's list and plays the first move whose GetRandomPercent roll passes, so a move near the top wins far more than its share. One-handed blades were 50/10/10/10/10/10%: Far Harbor's throat slash took half of them.
+At game start Finishers orders each list and evens out the rolls, so every move a weapon can do is equally likely: 20 lists and 61 kill moves, creatures included. Each one-handed blade move now gets 1 in 6. Paired moves that do not kill (shoves, tackles) keep the game's odds.
+
+[size=4][b]The plugin[/b][/size]
+Finishers.esp is a light plugin with no record overrides. It carries only the MCM page and two factions for the test fight (MCM > Finishers > Testing > [i]Start a fight here[/i]: two melee raiders that fight only each other).
+
+Source: [url=https://github.com/ReidenXerx/fo4-finishers]github.com/ReidenXerx/fo4-finishers[/url] (MIT).
