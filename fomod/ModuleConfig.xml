@@ -1,0 +1,61 @@
+﻿<?xml version="1.0" encoding="UTF-8"?>
+<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="http://qconsulting.ca/fo3/ModConfig5.0.xsd">
+  <moduleName>Finishers</moduleName>
+  <moduleImage path="fomod/images/thumb.jpg"/>
+
+  <!-- FOMOD standard rule 2: nothing a FOMOD can see is required (tools/make_fomod.py). -->
+
+  <requiredInstallFiles>
+    <folder source="Core" destination="" priority="0"/>
+  </requiredInstallFiles>
+
+  <installSteps order="Explicit">
+    <installStep name="Checking your setup">
+      <optionalFileGroups order="Explicit">
+        <group name="Checking your setup" type="SelectAll">
+          <plugins order="Explicit">
+            <plugin name="Checking your setup">
+              <description>Fallout 4: 1.10.163, next-gen or the Anniversary Edition, all work (through Runtime Database).
+F4SE: check this yourself. Finishers is an F4SE plugin: start the game through f4se_loader.exe (f4se.silverlock.org).
+Runtime Database: check this yourself. It finds the game&#x27;s functions; without its f4rd-runtime.bin the game stops at launch (Nexus 108394).
+MCM: check this yourself. Optional: Mod Configuration Menu gives Finishers its settings page and the test fight button; without it everything runs on its defaults.
+Finishers.esp: a light plugin that takes no load-order slot and changes no game record.</description>
+              <image path="fomod/images/thumb.jpg"/>
+              <conditionFlags><flag name="fin_page_1">seen</flag></conditionFlags>
+              <typeDescriptor><type name="Required"/></typeDescriptor>
+            </plugin>
+          </plugins>
+        </group>
+      </optionalFileGroups>
+    </installStep>
+    <installStep name="More kill moves">
+      <optionalFileGroups order="Explicit">
+        <group name="More kill moves" type="SelectAll">
+          <plugins order="Explicit">
+            <plugin name="More kill moves">
+              <description>The game plays a kill move only when it predicts that this exact swing kills, and a raider even tries a grab or kill move one time in ten, every five seconds. Finishers raises that to at least half the time, every three seconds, and lets a target at 30% health or less be finished early on half the swings: the victim dies in the animation. NPCs finish NPCs and you finish them; against you it stays the game&#x27;s own rule, only a blow that would kill you anyway. Every number is a slider in MCM.</description>
+              <image path="fomod/images/often.jpg"/>
+              <conditionFlags><flag name="fin_page_2">seen</flag></conditionFlags>
+              <typeDescriptor><type name="Required"/></typeDescriptor>
+            </plugin>
+          </plugins>
+        </group>
+      </optionalFileGroups>
+    </installStep>
+    <installStep name="Every kill move in turn">
+      <optionalFileGroups order="Explicit">
+        <group name="Every kill move in turn" type="SelectAll">
+          <plugins order="Explicit">
+            <plugin name="Every kill move in turn">
+              <description>Each weapon has a list of kill moves, and the game plays the first one whose dice roll passes, so the first in line won most of them (Far Harbor&#x27;s throat slash took half of all one-handed blade kill moves). At every game start Finishers orders each list and evens out the rolls, so every kill move your weapon can do is equally likely: 20 lists, 61 kill moves, creatures included. Paired moves that do not kill keep the game&#x27;s odds.</description>
+              <image path="fomod/images/variety.jpg"/>
+              <conditionFlags><flag name="fin_page_3">seen</flag></conditionFlags>
+              <typeDescriptor><type name="Required"/></typeDescriptor>
+            </plugin>
+          </plugins>
+        </group>
+      </optionalFileGroups>
+    </installStep>
+  </installSteps>
+</config>

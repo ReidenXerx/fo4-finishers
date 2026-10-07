@@ -1,6 +1,6 @@
 # Changelog
 
-## 1.0.0 (2026-10-07)
+## 1.0.0 (2026-10-08)
 
-- First release: kill moves on low-health targets, not only on the killing blow (MCM: health and chance); never on the player.
-- Every kill move and paired move a weapon can do is equally likely.
+- First release: fighters try kill moves and grabs far more often, and a target at 30% health or less can be finished early; never the player.
+- Every kill move a weapon can do is equally likely.
