@@ -34,8 +34,11 @@ namespace
 		bool  player{ true };        // the player's own swings too
 		bool  variety{ true };       // every kill move in turn (applied at game start)
 		bool  detailedLog{ false };
+		float attempts{ 50.0f };     // percent: the least chance a melee fighter tries a special move (grab, paired move, kill move)
+		float attemptDelay{ 3.0f };  // seconds between such tries
 	};
 
+	std::atomic_bool                   g_attemptsDirty{ true };
 	std::mutex                         g_settingsLock;
 	Settings                           g_settings;
 	std::filesystem::file_time_type    g_settingsStamp{};
@@ -66,6 +69,10 @@ namespace
 				a_out.player = value != 0;
 			} else if (is("bVariety")) {
 				a_out.variety = value != 0;
+			} else if (is("fAttempts")) {
+				a_out.attempts = std::clamp(real, 0.0f, 100.0f);
+			} else if (is("fAttemptDelay")) {
+				a_out.attemptDelay = std::clamp(real, 0.5f, 30.0f);
 			} else if (is("bDetailedLog")) {
 				a_out.detailedLog = value != 0;
 			}
@@ -97,10 +104,68 @@ namespace
 		}
 		g_settingsRead = true;
 		logger::info("settings: more kill moves {} (at or under {:.0f}% health, {:.0f}% of swings, the player's swings {}), "
-					 "variety {}, detailed log {}",
-			fresh.more, fresh.health, fresh.chance, fresh.player, fresh.variety, fresh.detailedLog);
+					 "special moves tried at least {:.0f}% every {:.1f} s, variety {}, detailed log {}",
+			fresh.more, fresh.health, fresh.chance, fresh.player, fresh.attempts, fresh.attemptDelay, fresh.variety, fresh.detailedLog);
 		g_settings = fresh;
+		g_attemptsDirty = true;
 		return g_settings;
+	}
+
+	// ---- how often a fighter tries ----------------------------------------------------------------------------------------
+	//
+	// A paired move (kill move or not) is only ever tried from the combat behaviour "special attack" (AE 0x101CA60, read
+	// 10-08): its chance is lerp(fCombatSpecialAttackChanceMin, fCombatSpecialAttackChanceMax, the combat style's Special
+	// Attack Mult), one try per fCombatSpecialAttackDelayTime. The game's settings are 0, 1 and 5 s, and raiders' styles
+	// carry 0.1: one try in ten, every five seconds -- the first test fight asked for a kill move twice in twenty minutes.
+	// The floor is raised (fAttempts) and the wait shortened (fAttemptDelay); a style already above the floor keeps its own.
+
+	struct Tuned
+	{
+		RE::Setting* setting{ nullptr };
+		float        vanilla{ 0.0f };
+	};
+	Tuned g_chanceMin;
+	Tuned g_delay;
+
+	RE::Setting* GameSetting(std::string_view a_name)
+	{
+		auto* gsc = RE::GameSettingCollection::GetSingleton();
+		if (!gsc) {
+			return nullptr;
+		}
+		for (auto& entry : gsc->settings) {
+			if (auto* setting = entry.second; setting && _stricmp(std::string(setting->GetKey()).c_str(), std::string(a_name).c_str()) == 0) {
+				return setting;
+			}
+		}
+		return nullptr;
+	}
+
+	void ApplyAttempts(const Settings& a_settings)
+	{
+		if (!g_attemptsDirty.exchange(false)) {
+			return;
+		}
+		auto find = [](Tuned& a_t, std::string_view a_name) {
+			if (!a_t.setting) {
+				a_t.setting = GameSetting(a_name);
+				if (a_t.setting) {
+					a_t.vanilla = a_t.setting->GetFloat();
+				}
+			}
+			return a_t.setting != nullptr;
+		};
+		if (!find(g_chanceMin, "fCombatSpecialAttackChanceMin") || !find(g_delay, "fCombatSpecialAttackDelayTime")) {
+			logger::warn("the special attack settings are missing - fighters try paired moves as often as in the game");
+			return;
+		}
+		const auto& s = a_settings;
+		const float floor = s.more ? std::max(g_chanceMin.vanilla, s.attempts / 100.0f) : g_chanceMin.vanilla;
+		const float wait = s.more ? s.attemptDelay : g_delay.vanilla;
+		g_chanceMin.setting->SetFloat(floor);
+		g_delay.setting->SetFloat(wait);
+		logger::info("special moves: tried at least {:.0f}% of the time (game {:.0f}%), every {:.1f} s (game {:.1f} s)", floor * 100.0f,
+			g_chanceMin.vanilla * 100.0f, wait, g_delay.vanilla);
 	}
 
 	// ---- the gate ------------------------------------------------------------------------------------------------------
@@ -248,6 +313,7 @@ namespace
 			return ok;
 		}
 		const auto s = CurrentSettings();
+		ApplyAttempts(s);
 		if (!s.more || s.chance <= 0.0f || s.health <= 0.0f) {
 			return ok;
 		}
@@ -258,24 +324,42 @@ namespace
 			target = a_data.targetRef->As<RE::Actor>();
 		}
 		auto* player = RE::PlayerCharacter::GetSingleton();
-		if (s.detailedLog && g_logged.load() < 12) {
-			++g_logged;
+		if (s.detailedLog) {
 			logger::info("ShouldAttackKill asked: subject {:08X}, parameter {:08X}, target ref {:08X} - the game says no",
 				attacker ? attacker->GetFormID() : 0, param ? param->GetFormID() : 0, a_data.targetRef ? a_data.targetRef->GetFormID() : 0);
 		}
-		if (!attacker || !target || attacker == target || target == player || attacker->IsDead(false) || target->IsDead(false)) {
+		auto why = [&](const char* a_reason) {
+			if (s.detailedLog) {
+				logger::info("  {:08X} on {:08X}: no early kill move - {}", attacker ? attacker->GetFormID() : 0, target ? target->GetFormID() : 0, a_reason);
+			}
 			return ok;
+		};
+		if (!attacker || !target || attacker == target) {
+			return why("no attacker or target");
+		}
+		if (target == player) {
+			return why("the target is the player");
+		}
+		if (attacker->IsDead(false) || target->IsDead(false)) {
+			return why("one of them is dead");
 		}
 		if (attacker == player && !s.player) {
-			return ok;
+			return why("the player's swings are off in MCM");
 		}
 		const auto flags = target->boolFlags.underlying();
-		if ((flags & kEssential) || ((flags & kProtected) && attacker != player) || InKillMove(target)) {
-			return ok;
+		if ((flags & kEssential) || ((flags & kProtected) && attacker != player)) {
+			return why("the target is essential or protected");
+		}
+		if (InKillMove(target)) {
+			return why("the target is in a kill move already");
 		}
 		const float max = Health(target, true);
 		const float hp = Health(target, false);
 		if (max <= 0.0f || hp <= 0.0f || hp * 100.0f > s.health * max) {
+			if (s.detailedLog) {
+				logger::info("  {:08X} on {:08X}: no early kill move - health {:.0f} of {:.0f} is over {:.0f}%", attacker->GetFormID(),
+					target->GetFormID(), hp, max, s.health);
+			}
 			return ok;
 		}
 		const std::uint64_t key = (std::uint64_t{ attacker->GetFormID() } << 32) | target->GetFormID();
@@ -343,6 +427,36 @@ namespace
 	// ---- variety -------------------------------------------------------------------------------------------------------
 
 	constexpr std::uint16_t kGetRandomPercent = 77;
+	constexpr std::uint16_t kShouldAttackKill = 678;
+
+	bool HasFunction(const RE::TESIdleForm* a_idle, std::uint16_t a_fn)
+	{
+		for (auto* c = a_idle->conditions.head; c; c = c->next) {
+			if ((static_cast<std::uint16_t>(c->data.functionData.function.underlying()) & 0x0FFF) == a_fn) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	// Under a kill branch: the group itself or a parent asks ShouldAttackKill. Only those are evened out: a group of
+	// paired moves that do NOT kill (shoves, tackles) can fall through to the kill moves after it when every roll
+	// fails, and a 100% last move there would starve them (10-08).
+	bool UnderKill(void* a_parent, const std::vector<RE::TESIdleForm*>& a_list)
+	{
+		if (std::ranges::any_of(a_list, [](auto* i) { return HasFunction(i, kShouldAttackKill); })) {
+			return true;
+		}
+		auto* form = static_cast<RE::TESForm*>(a_parent);
+		for (int depth = 0; form && form->GetFormType() == RE::ENUM_FORM_ID::kIDLE && depth < 12; ++depth) {
+			auto* idle = static_cast<RE::TESIdleForm*>(form);
+			if (HasFunction(idle, kShouldAttackKill)) {
+				return true;
+			}
+			form = idle->parentIdle;
+		}
+		return false;
+	}
 
 	bool IsRandom(const RE::TESConditionItem* a_item)
 	{
@@ -453,17 +567,62 @@ namespace
 			return;
 		}
 		std::unordered_map<void*, std::vector<RE::TESIdleForm*>> groups;
-		for (auto* idle : data->GetFormArray<RE::TESIdleForm>()) {
-			if (idle && idle->parentIdle) {
+		int total = 0, withParent = 0, paired = 0, pairedLeaves = 0;
+		// Idles are not in the data handler's form arrays (that list came back empty, 10-07): every form, filtered.
+		std::vector<RE::TESIdleForm*> idles;
+		{
+			const auto& [map, lock] = RE::TESForm::GetAllForms();
+			RE::BSAutoReadLock l{ lock };
+			if (map) {
+				for (const auto& [id, form] : *map) {
+					if (form && form->GetFormType() == RE::ENUM_FORM_ID::kIDLE) {
+						idles.push_back(static_cast<RE::TESIdleForm*>(form));
+					}
+				}
+			}
+		}
+		for (auto* idle : idles) {
+			if (!idle) {
+				continue;
+			}
+			++total;
+			paired += StartsWithPa(idle->animEventName) ? 1 : 0;
+			pairedLeaves += StartsWithPa(idle->animEventName) && !idle->childIdles ? 1 : 0;
+			if (idle->parentIdle) {
+				++withParent;
 				groups[idle->parentIdle].push_back(idle);
 			}
+		}
+		logger::info("variety: {} idles, {} with a parent, {} paired ('pa_' event), {} of them leaves, {} sibling groups", total,
+			withParent, paired, pairedLeaves, groups.size());
+		// One known kill move as the game holds it (PairedKill1HMStabNeck, Fallout4.esm 0C73B8): what the reading sees.
+		if (auto* probe = RE::TESForm::GetFormByID<RE::TESIdleForm>(0x0C73B8)) {
+			logger::info("variety probe 0C73B8: event '{}', parent {:08X}, previous {:08X}, children {}, first condition fn {}",
+				probe->animEventName.c_str() ? probe->animEventName.c_str() : "", probe->parentIdle ? probe->parentIdle->GetFormID() : 0,
+				probe->prevIdle ? probe->prevIdle->GetFormID() : 0, static_cast<const void*>(probe->childIdles),
+				probe->conditions.head ? static_cast<int>(probe->conditions.head->data.functionData.function.underlying()) : -1);
 		}
 		int groupsDone = 0;
 		int moves = 0;
 		int skipped = 0;
+		int mixed = 0;
+		int notKill = 0;
 		const bool detailed = CurrentSettings().detailedLog;
 		for (auto& [parent, list] : groups) {
-			if (list.size() < 2 || !std::ranges::all_of(list, [](auto* i) { return StartsWithPa(i->animEventName) && !i->childIdles; })) {
+			const auto pa = std::ranges::count_if(list, [](auto* i) { return StartsWithPa(i->animEventName); });
+			if (list.size() < 2 || pa == 0) {
+				continue;
+			}
+			if (!UnderKill(parent, list)) {
+				++notKill;
+				continue;
+			}
+			if (pa != static_cast<std::ptrdiff_t>(list.size()) || !std::ranges::all_of(list, [](auto* i) { return !i->childIdles; })) {
+				++mixed;
+				if (detailed) {
+					logger::info("variety: group under {:08X} skipped - {} of {} paired, children {}", static_cast<RE::TESForm*>(parent)->GetFormID(),
+						pa, list.size(), std::ranges::count_if(list, [](auto* i) { return i->childIdles != nullptr; }));
+				}
 				continue;
 			}
 			// The group's order: first the one whose previous is not in the group, then each one's follower.
@@ -544,15 +703,19 @@ namespace
 				logger::info("variety: group under {:08X} done ({} moves)", static_cast<RE::TESForm*>(parent)->GetFormID(), want.size());
 			}
 		}
-		logger::info("variety: {} paired groups evened out ({} moves), {} left as they are", groupsDone, moves, skipped);
+		logger::info("variety: {} kill-move groups evened out ({} moves), {} left as they are, {} mixed, {} paired groups that do not kill left alone", groupsDone, moves, skipped, mixed, notKill);
 	}
 
 	// ---- plumbing ------------------------------------------------------------------------------------------------------
 
 	void OnMessage(F4SE::MessagingInterface::Message* a_msg)
 	{
+		if (a_msg && (a_msg->type == F4SE::MessagingInterface::kPostLoadGame || a_msg->type == F4SE::MessagingInterface::kNewGame)) {
+			ApplyAttempts(CurrentSettings());
+		}
 		if (a_msg && a_msg->type == F4SE::MessagingInterface::kGameDataReady) {
 			const auto s = CurrentSettings();
+			ApplyAttempts(s);
 			if (s.variety) {
 				ApplyVariety();
 			} else {

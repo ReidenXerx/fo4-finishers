@@ -63,6 +63,30 @@
       }
     },
     {
+      "text": "Special moves tried (%)",
+      "type": "slider",
+      "id": "fAttempts:Main",
+      "help": "The least chance a melee fighter tries a grab, a paired move or a kill move when it may. The game gives most fighters 10%. Default 50.",
+      "valueOptions": {
+        "min": 0.0,
+        "max": 100.0,
+        "step": 5.0,
+        "sourceType": "ModSettingFloat"
+      }
+    },
+    {
+      "text": "Seconds between tries",
+      "type": "slider",
+      "id": "fAttemptDelay:Main",
+      "help": "How long a fighter waits before it may try such a move again. The game uses 5. Default 3.",
+      "valueOptions": {
+        "min": 1.0,
+        "max": 10.0,
+        "step": 0.5,
+        "sourceType": "ModSettingFloat"
+      }
+    },
+    {
       "text": "Variety",
       "type": "section"
     },
