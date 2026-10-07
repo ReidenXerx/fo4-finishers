@@ -310,6 +310,10 @@ namespace
 	{
 		const bool ok = g_vanilla(a_data, a_param2, a_param1, a_result);
 		if (a_result > 0.5f) {
+			if (CurrentSettings().detailedLog) {
+				logger::info("{:08X} on {:08X}: the game's own kill move (this blow kills)", a_data.actionRef ? a_data.actionRef->GetFormID() : 0,
+					a_param2 ? static_cast<RE::TESForm*>(a_param2)->GetFormID() : 0);
+			}
 			return ok;
 		}
 		const auto s = CurrentSettings();
