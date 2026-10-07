@@ -84,6 +84,17 @@
       "type": "section"
     },
     {
+      "text": "Start a fight here",
+      "type": "button",
+      "help": "Two melee raiders appear in front of you and fight each other (only each other). Close the menu to watch for kill moves.",
+      "action": {
+        "type": "CallGlobalFunction",
+        "script": "Finishers:Debug",
+        "function": "SpawnFight",
+        "params": []
+      }
+    },
+    {
       "text": "Detailed log",
       "type": "switcher",
       "id": "bDetailedLog:Main",
