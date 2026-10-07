@@ -1,0 +1,96 @@
+{
+  "modName": "Finishers",
+  "displayName": "Finishers",
+  "minMcmVersion": 2,
+  "content": [
+    {
+      "type": "spacer",
+      "numLines": 2
+    },
+    {
+      "text": "<p align='center'><font size='28'><b>FINISHERS</b></font><br><font size='12'>More and varied melee kill moves</font></p>",
+      "html": true,
+      "type": "text"
+    },
+    {
+      "text": "More often",
+      "type": "section"
+    },
+    {
+      "text": "The game plays a kill move only on the exact swing that kills. With this on, a target that is already low on health can be finished with one, and it dies in the animation. Never the player.",
+      "type": "text"
+    },
+    {
+      "text": "More kill moves",
+      "type": "switcher",
+      "id": "bMore:Main",
+      "help": "Kill moves before the very last blow. Off: only the game's own (the exact killing blow). Default: on.",
+      "valueOptions": {
+        "sourceType": "ModSettingBool"
+      }
+    },
+    {
+      "text": "Target health under (%)",
+      "type": "slider",
+      "id": "fHealth:Main",
+      "help": "A target at or under this much of its health can be finished with a kill move. Default 30.",
+      "valueOptions": {
+        "min": 5.0,
+        "max": 100.0,
+        "step": 5.0,
+        "sourceType": "ModSettingFloat"
+      }
+    },
+    {
+      "text": "Chance per swing (%)",
+      "type": "slider",
+      "id": "fChance:Main",
+      "help": "How often a melee swing at such a target becomes a kill move. Default 50.",
+      "valueOptions": {
+        "min": 0.0,
+        "max": 100.0,
+        "step": 5.0,
+        "sourceType": "ModSettingFloat"
+      }
+    },
+    {
+      "text": "Your own swings too",
+      "type": "switcher",
+      "id": "bPlayer:Main",
+      "help": "You get the extra kill moves as well, not only the NPCs fighting each other and you. Default: on.",
+      "valueOptions": {
+        "sourceType": "ModSettingBool"
+      }
+    },
+    {
+      "text": "Variety",
+      "type": "section"
+    },
+    {
+      "text": "Each weapon has a list of kill moves, and the game used to play the first few almost every time. With this on, every move your weapon can do is equally likely.",
+      "type": "text"
+    },
+    {
+      "text": "Every kill move in turn",
+      "type": "switcher",
+      "id": "bVariety:Main",
+      "help": "Evens out the odds of every kill move and paired move. Takes effect at the next game start. Default: on.",
+      "valueOptions": {
+        "sourceType": "ModSettingBool"
+      }
+    },
+    {
+      "text": "Testing",
+      "type": "section"
+    },
+    {
+      "text": "Detailed log",
+      "type": "switcher",
+      "id": "bDetailedLog:Main",
+      "help": "Writes every allowed kill move and how it ended to Documents/My Games/Fallout4/F4SE/Finishers.log.",
+      "valueOptions": {
+        "sourceType": "ModSettingBool"
+      }
+    }
+  ]
+}

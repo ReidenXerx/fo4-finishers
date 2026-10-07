@@ -1,0 +1,14 @@
+{
+  "name": "finishers",
+  "version-string": "1.0.0",
+  "description": "Fallout 4: more and varied melee kill moves",
+  "supports": "windows & x64",
+  "dependencies": [
+    "boost-stl-interfaces",
+    "fmt",
+    "rsm-mmio",
+    "spdlog",
+    "zydis"
+  ],
+  "builtin-baseline": "386d7c478221b7ee0c97bfe6ea61dcf65121d564"
+}
