@@ -6,9 +6,9 @@
 [CmdletBinding()]
 param(
     [string] $Base     = 'D:\F4CustomMods\PapyrusBase\Source\Base',
-    [string] $Compiler = 'D:\GOGGames\Fallout 4 GOTY\Papyrus Compiler\PapyrusCompiler.exe',
+    [string] $Compiler = 'D:\F4Tools\Papyrus Compiler\PapyrusCompiler.exe',
     # F4SE's script sources; searched before the base sources.
-    [string] $F4SE     = 'D:\GOGGames\Fallout 4 GOTY\Data\Scripts\Source'
+    [string] $F4SE     = 'D:\SteamFreeGames\Fallout 4 AE\Data\Scripts\Source'
 )
 $ErrorActionPreference = 'Stop'
 $root    = Split-Path -Parent $PSScriptRoot
